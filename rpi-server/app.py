@@ -17,6 +17,8 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 gpio_handler = GPIOHandler()
 alarm_handler = AlarmHandler(gpio_handler)
 camera_handler = CameraHandler(alarm_handler)
+# After creating camera_handler
+camera_handler.socketio = socketio
 
 # Create a queue for status updates
 status_queue = Queue()

@@ -158,6 +158,42 @@ class CameraHandler:
             self.logger.error(f"Error processing frame: {str(e)}")
     # Add this method to the CameraHandler class:
 
+    def _emit_frame_update(self):
+        """Emit frame update through socketio"""
+        try:
+            if hasattr(self, 'socketio'):  # Make sure socketio is available
+                frame_data = {
+                    'frame': self.get_current_frame_base64(),
+                    'processed_frame': self.get_processed_frame_base64(),
+                    'detections': self.detections
+                }
+                self.logger.debug("Emitting frame update")
+                self.socketio.emit('frame_update', frame_data)
+        except Exception as e:
+            self.logger.error(f"Error emitting frame update: {str(e)}")
+
+    def get_current_frame_base64(self) -> Optional[str]:
+        """Get the latest frame as base64 string"""
+        try:
+            if self.last_frame is None:
+                return None
+            _, buffer = cv2.imencode('.jpg', self.last_frame)
+            return base64.b64encode(buffer).decode('utf-8')
+        except Exception as e:
+            self.logger.error(f"Error encoding current frame: {str(e)}")
+            return None
+
+    def get_processed_frame_base64(self) -> Optional[str]:
+        """Get the latest processed frame as base64 string"""
+        try:
+            if self.last_processed_frame is None:
+                return None
+            _, buffer = cv2.imencode('.jpg', self.last_processed_frame)
+            return base64.b64encode(buffer).decode('utf-8')
+        except Exception as e:
+            self.logger.error(f"Error encoding processed frame: {str(e)}")
+            return None
+
     def get_camera_status(self) -> dict:
         """Get current camera status with error handling"""
         try:
