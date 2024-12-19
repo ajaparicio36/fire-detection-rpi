@@ -5,6 +5,7 @@ from modules.alarm_handler import AlarmHandler
 from modules.camera_handler import CameraHandler
 import threading
 import time
+import json
 import signal
 import sys
 from queue import Queue
