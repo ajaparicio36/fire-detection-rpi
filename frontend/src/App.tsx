@@ -1,9 +1,7 @@
-// src/App.tsx
 import React, { useEffect, useState } from "react";
 import { socket } from "./utils/socket";
 import StatusIndicator from "./components/StatusIndicator";
 import CameraFeed from "./components/CameraFeed";
-import "/App.css";
 
 interface Status {
   enabled: boolean;
@@ -73,30 +71,27 @@ const App = () => {
   };
 
   return (
+    // Added proper Tailwind classes for dark theme
     <div className="min-h-screen bg-gray-900 p-6">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-8">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <h1 className="text-3xl font-bold text-white">
           Security Monitoring System
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <StatusIndicator
-              enabled={status.enabled}
-              active={status.active}
-              lastEvent={status.last_event}
-              onToggle={handleToggleEnabled}
-              onAlarmControl={handleAlarmControl}
-            />
-          </div>
+          <StatusIndicator
+            enabled={status.enabled}
+            active={status.active}
+            lastEvent={status.last_event}
+            onToggle={handleToggleEnabled}
+            onAlarmControl={handleAlarmControl}
+          />
 
-          <div>
-            <CameraFeed
-              frame={frame}
-              processedFrame={processedFrame}
-              cameraStatus={status.camera}
-            />
-          </div>
+          <CameraFeed
+            frame={frame}
+            processedFrame={processedFrame}
+            cameraStatus={status.camera}
+          />
         </div>
       </div>
     </div>
