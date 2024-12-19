@@ -2,7 +2,7 @@ import RPi.GPIO as GPIO
 import time
 
 # Just test a single pin first
-TEST_PIN = 27
+TEST_PIN = 17
 
 GPIO.setwarnings(False)  # Disable warnings temporarily for testing
 GPIO.setmode(GPIO.BCM)
