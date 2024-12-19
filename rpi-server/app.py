@@ -7,23 +7,45 @@ import threading
 import time
 import signal
 import sys
+from queue import Queue
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Initialize handlers
 gpio_handler = GPIOHandler()
 alarm_handler = AlarmHandler(gpio_handler)
 camera_handler = CameraHandler(alarm_handler)
 
+# Create a queue for status updates
+status_queue = Queue()
+
+def status_broadcast_worker():
+    """Worker thread to handle status broadcasts"""
+    while True:
+        try:
+            status = status_queue.get()
+            if status is None:  # Poison pill to stop the worker
+                break
+            camera_status = camera_handler.get_camera_status()
+            status.update({'camera': camera_status})
+            socketio.emit('status_update', status, namespace='/')
+        except Exception as e:
+            print(f"Error in status broadcast worker: {e}")
+        finally:
+            status_queue.task_done()
+
+# Start the broadcast worker thread
+broadcast_thread = threading.Thread(target=status_broadcast_worker)
+broadcast_thread.daemon = True
+broadcast_thread.start()
+
 def broadcast_status(status):
-    """Broadcast status updates to all clients"""
+    """Queue status updates for broadcasting"""
     try:
-        camera_status = camera_handler.get_camera_status()
-        status.update({'camera': camera_status})
-        socketio.emit('status_update', status)
+        status_queue.put(status)
     except Exception as e:
-        print(f"Error broadcasting status: {e}")
+        print(f"Error queueing status update: {e}")
 
 # Set up alarm handler callback
 alarm_handler.set_status_callback(broadcast_status)
@@ -34,7 +56,6 @@ def setup_smoke_detection():
         gpio_handler.setup_smoke_detection(alarm_handler.handle_smoke_detection)
     except Exception as e:
         print(f"Error setting up smoke detection: {e}")
-        # Retry after a delay
         threading.Timer(5.0, setup_smoke_detection).start()
 
 setup_smoke_detection()
@@ -47,7 +68,7 @@ def handle_alarm_control(active):
             alarm_handler.activate_alarm()
         else:
             alarm_handler.deactivate_alarm()
-        # Broadcast updated status to all clients
+        # Queue status update
         broadcast_status(alarm_handler.get_status())
     except Exception as e:
         print(f"Error handling alarm control: {e}")
@@ -57,7 +78,7 @@ def handle_alarm_control(active):
 def handle_connect():
     """Handle client connection"""
     try:
-        socketio.emit('status_update', alarm_handler.get_status())
+        broadcast_status(alarm_handler.get_status())
     except Exception as e:
         print(f"Error handling connection: {e}")
 
@@ -89,6 +110,11 @@ def cleanup():
     """Cleanup on shutdown"""
     print("Performing cleanup...")
     try:
+        # Stop the broadcast worker
+        status_queue.put(None)
+        broadcast_thread.join(timeout=1.0)
+        
+        # Cleanup handlers
         camera_handler.stop()
         alarm_handler.deactivate_alarm()
         gpio_handler.cleanup()
@@ -111,7 +137,7 @@ if __name__ == '__main__':
         camera_handler.start()
         
         # Start the Flask-SocketIO server
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+        socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
     except Exception as e:
         print(f"Error starting server: {e}")
     finally:
