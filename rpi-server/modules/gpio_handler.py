@@ -4,87 +4,55 @@ import time
 
 class GPIOHandler:
     def __init__(self):
-        # Clean up any existing GPIO settings first
-        GPIO.cleanup()
+        # Disable warnings since we know we're handling cleanup properly
+        GPIO.setwarnings(False)
         
         # Set up GPIO using BCM numbering
         GPIO.setmode(GPIO.BCM)
         
         # Pin definitions
-        self.SMOKE_DETECTOR_PIN = 17  # Physical pin 11
+        self.SMOKE_DETECTOR_PIN = 27  # Physical pin 11
         self.ALARM_PIN = 18          # Physical pin 12
         
-        # Setup pins with try-except blocks
-        try:
-            GPIO.setup(self.SMOKE_DETECTOR_PIN, GPIO.IN)
-        except RuntimeError as e:
-            print(f"Error setting up smoke detector pin: {e}")
-            # Try to remove existing detection before setting up
-            try:
-                GPIO.remove_event_detect(self.SMOKE_DETECTOR_PIN)
-            except:
-                pass
-            GPIO.setup(self.SMOKE_DETECTOR_PIN, GPIO.IN)
-            
-        try:
-            GPIO.setup(self.ALARM_PIN, GPIO.OUT)
-            GPIO.output(self.ALARM_PIN, GPIO.LOW)
-        except RuntimeError as e:
-            print(f"Error setting up alarm pin: {e}")
-            GPIO.cleanup(self.ALARM_PIN)
-            GPIO.setup(self.ALARM_PIN, GPIO.OUT)
-            GPIO.output(self.ALARM_PIN, GPIO.LOW)
+        # Setup pins
+        GPIO.setup(self.SMOKE_DETECTOR_PIN, GPIO.IN)
+        GPIO.setup(self.ALARM_PIN, GPIO.OUT)
+        GPIO.output(self.ALARM_PIN, GPIO.LOW)
         
         self._smoke_callback = None
+        self._is_monitoring = False
         
     def setup_smoke_detection(self, callback: Callable[[bool], None]):
-        """Set up smoke detector interrupt with debouncing"""
+        """Set up smoke detector monitoring"""
         self._smoke_callback = callback
-        try:
-            # Remove any existing event detection first
-            GPIO.remove_event_detect(self.SMOKE_DETECTOR_PIN)
-        except:
-            pass
-            
-        try:
-            GPIO.add_event_detect(
-                self.SMOKE_DETECTOR_PIN,
-                GPIO.BOTH,
-                callback=self._handle_smoke_event,
-                bouncetime=300
-            )
-        except RuntimeError as e:
-            print(f"Error setting up event detection: {e}")
-            # If that failed, try cleaning up just this pin and retry
-            GPIO.cleanup(self.SMOKE_DETECTOR_PIN)
-            GPIO.setup(self.SMOKE_DETECTOR_PIN, GPIO.IN)
-            GPIO.add_event_detect(
-                self.SMOKE_DETECTOR_PIN,
-                GPIO.BOTH,
-                callback=self._handle_smoke_event,
-                bouncetime=300
-            )
+        self._is_monitoring = True
+        
+        # Start monitoring in a more basic way
+        self._last_state = GPIO.input(self.SMOKE_DETECTOR_PIN)
+        self._monitor_smoke_detector()
     
-    def _handle_smoke_event(self, channel):
-        """Handle smoke detection event with debouncing"""
-        if self._smoke_callback:
-            is_smoke_detected = GPIO.input(self.SMOKE_DETECTOR_PIN)
-            self._smoke_callback(is_smoke_detected)
+    def _monitor_smoke_detector(self):
+        """Monitor the smoke detector state"""
+        if not self._is_monitoring:
+            return
+            
+        current_state = GPIO.input(self.SMOKE_DETECTOR_PIN)
+        if current_state != self._last_state:
+            if self._smoke_callback:
+                self._smoke_callback(current_state)
+            self._last_state = current_state
+            time.sleep(0.3)  # Simple debounce
+            
+        # Schedule the next check
+        if self._is_monitoring:
+            time.sleep(0.1)  # Check every 100ms
+            self._monitor_smoke_detector()
     
     def set_alarm(self, state: bool):
         """Control the alarm output"""
-        try:
-            GPIO.output(self.ALARM_PIN, GPIO.HIGH if state else GPIO.LOW)
-        except RuntimeError as e:
-            print(f"Error setting alarm state: {e}")
-            # Try to recover by resetting the pin
-            GPIO.cleanup(self.ALARM_PIN)
-            GPIO.setup(self.ALARM_PIN, GPIO.OUT)
-            GPIO.output(self.ALARM_PIN, GPIO.HIGH if state else GPIO.LOW)
+        GPIO.output(self.ALARM_PIN, GPIO.HIGH if state else GPIO.LOW)
     
     def cleanup(self):
         """Clean up GPIO on shutdown"""
-        try:
-            GPIO.cleanup()
-        except:
-            pass
+        self._is_monitoring = False  # Stop the monitoring loop
+        GPIO.cleanup()
