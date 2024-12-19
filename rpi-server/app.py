@@ -27,6 +27,16 @@ alarm_handler.set_status_callback(broadcast_status)
 # Set up smoke detection callback
 gpio_handler.setup_smoke_detection(alarm_handler.handle_smoke_detection)
 
+@socketio.on('control_alarm')
+def handle_alarm_control(active):
+    """Handle manual alarm control requests from clients"""
+    if active:
+        alarm_handler.activate_alarm()
+    else:
+        alarm_handler.deactivate_alarm()
+    # Broadcast updated status to all clients
+    broadcast_status(alarm_handler.get_status())
+
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""
