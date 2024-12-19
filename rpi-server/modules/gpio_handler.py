@@ -1,13 +1,11 @@
 import RPi.GPIO as GPIO
 from typing import Callable
 import time
+import threading
 
 class GPIOHandler:
     def __init__(self):
-        # Disable warnings since we know we're handling cleanup properly
         GPIO.setwarnings(False)
-        
-        # Set up GPIO using BCM numbering
         GPIO.setmode(GPIO.BCM)
         
         # Pin definitions
@@ -21,32 +19,31 @@ class GPIOHandler:
         
         self._smoke_callback = None
         self._is_monitoring = False
+        self._monitor_thread = None
         
     def setup_smoke_detection(self, callback: Callable[[bool], None]):
         """Set up smoke detector monitoring"""
         self._smoke_callback = callback
         self._is_monitoring = True
         
-        # Start monitoring in a more basic way
-        self._last_state = GPIO.input(self.SMOKE_DETECTOR_PIN)
-        self._monitor_smoke_detector()
+        # Start monitoring in a separate thread
+        self._monitor_thread = threading.Thread(target=self._monitor_smoke_detector)
+        self._monitor_thread.daemon = True  # Thread will stop when main program stops
+        self._monitor_thread.start()
     
     def _monitor_smoke_detector(self):
         """Monitor the smoke detector state"""
-        if not self._is_monitoring:
-            return
+        last_state = GPIO.input(self.SMOKE_DETECTOR_PIN)
+        
+        while self._is_monitoring:
+            current_state = GPIO.input(self.SMOKE_DETECTOR_PIN)
+            if current_state != last_state:
+                if self._smoke_callback:
+                    self._smoke_callback(current_state)
+                last_state = current_state
+                time.sleep(0.3)  # Simple debounce
             
-        current_state = GPIO.input(self.SMOKE_DETECTOR_PIN)
-        if current_state != self._last_state:
-            if self._smoke_callback:
-                self._smoke_callback(current_state)
-            self._last_state = current_state
-            time.sleep(0.3)  # Simple debounce
-            
-        # Schedule the next check
-        if self._is_monitoring:
             time.sleep(0.1)  # Check every 100ms
-            self._monitor_smoke_detector()
     
     def set_alarm(self, state: bool):
         """Control the alarm output"""
@@ -54,5 +51,7 @@ class GPIOHandler:
     
     def cleanup(self):
         """Clean up GPIO on shutdown"""
-        self._is_monitoring = False  # Stop the monitoring loop
+        self._is_monitoring = False
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=1.0)  # Wait for monitoring to stop
         GPIO.cleanup()
