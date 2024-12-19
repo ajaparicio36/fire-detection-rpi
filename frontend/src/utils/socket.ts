@@ -1,9 +1,16 @@
 // src/utils/socket.ts
 import { io } from "socket.io-client";
 
-export const socket = io("http://localhost:5000", {
+const SOCKET_URL = `http://192.168.1.12:5000`;
+
+export const socket = io(SOCKET_URL, {
   transports: ["websocket"],
-  autoConnect: true,
+  reconnectionDelay: 1000,
+  reconnection: true,
+  reconnectionAttempts: 10,
+  agent: false,
+  upgrade: false,
+  rejectUnauthorized: false,
 });
 
 export const connectSocket = () => {

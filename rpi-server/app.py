@@ -9,9 +9,15 @@ import json
 import signal
 import sys
 from queue import Queue
+from flask_cors import CORS
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+CORS(app, resources={r"/*": {"origins": "*"}})
+socketio = SocketIO(app, 
+                   cors_allowed_origins="*",  # Allow all origins
+                   async_mode='threading')
+
 
 # Initialize handlers
 gpio_handler = GPIOHandler()
@@ -136,11 +142,12 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, signal_handler)
 
     try:
-        # Start camera handler
         camera_handler.start()
-        
-        # Start the Flask-SocketIO server
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
+        socketio.run(app, 
+                    host='0.0.0.0',  # Listen on all network interfaces
+                    port=5000, 
+                    debug=False,
+                    allow_unsafe_werkzeug=True)
     except Exception as e:
         print(f"Error starting server: {e}")
     finally:
