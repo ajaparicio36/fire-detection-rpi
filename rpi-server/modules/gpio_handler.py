@@ -8,11 +8,11 @@ class GPIOHandler:
         GPIO.setmode(GPIO.BCM)
         
         # Pin definitions
-        self.SMOKE_DETECTOR_PIN = 11  # Physical pin 11
-        self.ALARM_PIN = 12          # Physical pin 12
+        self.SMOKE_DETECTOR_PIN = 27  # Physical pin 11
+        self.ALARM_PIN = 18          # Physical pin 12
         
         # Setup pins
-        GPIO.setup(self.SMOKE_DETECTOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.setup(self.SMOKE_DETECTOR_PIN, GPIO.IN)
         GPIO.setup(self.ALARM_PIN, GPIO.OUT)
         GPIO.output(self.ALARM_PIN, GPIO.LOW)
         
