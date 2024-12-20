@@ -78,7 +78,7 @@ const App = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         <header className="flex items-center justify-between">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600">
-            Security Monitoring System
+            Fire Monitoring System
           </h1>
           <Sparkles className="text-yellow-400 animate-pulse" size={32} />
         </header>
