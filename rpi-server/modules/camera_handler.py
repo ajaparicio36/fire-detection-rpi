@@ -227,3 +227,23 @@ class CameraHandler:
                 'resolution': {'width': 0, 'height': 0},
                 'detections_count': 0
             }
+    
+    def stop(self):
+        """Stop the camera capture thread and release resources"""
+        self.logger.info("Stopping camera handler...")
+        try:
+            # Stop the camera loop
+            self.is_running = False
+        
+            # Wait for the thread to finish if it exists
+            if self.thread and self.thread.is_alive():
+                self.thread.join(timeout=2.0)
+        
+            # Release the camera if it's open
+            if self.camera and self.camera.isOpened():
+                self.camera.release()
+                self.camera = None
+            
+            self.logger.info("Camera handler stopped successfully")
+        except Exception as e:
+            self.logger.error(f"Error stopping camera handler: {str(e)}")
